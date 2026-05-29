@@ -59,3 +59,4 @@ Bu proje Vite tabanlı bir React uygulamasıdır ve Vercel'e deploy edilmeye haz
 - Install Command: `npm install`
 
 `vercel.json` dosyası eklendiği için sayfa yenileme / direkt link açma durumlarında uygulama `index.html` üzerinden çalışır.
+v22 force deploy
