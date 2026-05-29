@@ -1,4 +1,4 @@
-import React, { useState  } from 'react'
+import React, { useState } from 'react'
 import { Bell, Bike, CalendarCheck, Car, Sparkles } from 'lucide-react'
 import { calculateActivityMatches, calculateCommonAvailability, calculateVehicleSummary } from '../utils/calculateCommonAvailability'
 
@@ -9,7 +9,21 @@ export default function CommonAvailability({ members }) {
   const vehicle = calculateVehicleSummary(members)
 
   const notifySlot = (slot) => {
-    setNotificationMessage(`${slot.day} ${slot.start}-${slot.end} aralığı için ${slot.members.join(', ')} kişilerine bildirim gönderildi.`)
+    const text = `Piyasa Vakti bildirimi: ${slot.day} ${slot.start}-${slot.end} aralığı için uygun olanlar: ${slot.members.join(', ')}`
+    setNotificationMessage(text)
+
+    try {
+      navigator.clipboard?.writeText(text)
+    } catch {
+      // Clipboard can be blocked by the browser.
+    }
+
+    window.alert(`${slot.members.join(', ')} kişilerine bildirim hazırlandı.\n\n${slot.day} ${slot.start}-${slot.end}`)
+
+    const shouldOpenWhatsApp = window.confirm('Bu bildirimi WhatsApp mesajı olarak da açayım mı?')
+    if (shouldOpenWhatsApp) {
+      window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank', 'noopener,noreferrer')
+    }
   }
 
   return (

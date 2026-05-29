@@ -637,3 +637,22 @@ button { cursor: pointer; }
     grid-template-columns: 1fr;
   }
 }
+
+
+/* v16 reliable actions */
+.version-tag {
+  display: inline-block;
+  margin-top: 5px;
+  color: #64748b;
+  font-size: .72rem;
+  font-weight: 800;
+}
+.feedback-box {
+  padding: 12px 13px;
+  border-radius: 16px;
+  background: rgba(236, 253, 245, .13);
+  color: #bbf7d0;
+  border: 1px solid rgba(187, 247, 208, .22);
+  font-weight: 800;
+  line-height: 1.35;
+}
