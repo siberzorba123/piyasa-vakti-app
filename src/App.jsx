@@ -1,4 +1,4 @@
-import React, { useMemo, useState  } from 'react'
+import React, { useMemo, useState } from 'react'
 import { Crown, Plus, Search, UsersRound } from 'lucide-react'
 import GroupCard from './components/GroupCard'
 import MemberCard from './components/MemberCard'
@@ -18,17 +18,144 @@ const tabs = [
   { key: 'admin', label: 'Yönetim' },
 ]
 
+const emptyAvailability = {
+  mon: [],
+  tue: [],
+  wed: [],
+  thu: [],
+  fri: [],
+  sat: [],
+  sun: [],
+}
+
+const makeInviteCode = (name) => {
+  const prefix = (name || 'PV')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9]/g, '')
+    .slice(0, 3)
+    .toUpperCase() || 'PV'
+
+  return `${prefix}-${Math.floor(1000 + Math.random() * 9000)}`
+}
+
+const makeCurrentUserMember = (profile) => ({
+  id: currentUser.id,
+  name: profile.name,
+  avatar: profile.avatar ?? currentUser.avatar,
+  iban: profile.iban,
+  availability: emptyAvailability,
+  activities: [],
+  activityDetails: {},
+  vehicle: { hasCar: false, hasMotorcycle: false, note: '' },
+  budget: 'Baya zenginim',
+  note: '',
+})
+
 export default function App() {
   const [groups, setGroups] = useState(initialGroups)
   const [selectedGroupId, setSelectedGroupId] = useState(groups[0].id)
   const [activeTab, setActiveTab] = useState('summary')
   const [membersByGroup, setMembersByGroup] = useState(initialMembers)
   const [userProfile, setUserProfile] = useState(currentUser)
+  const [feedback, setFeedback] = useState('')
+  const [createGroupOpen, setCreateGroupOpen] = useState(false)
+  const [joinGroupOpen, setJoinGroupOpen] = useState(false)
+  const [newGroupName, setNewGroupName] = useState('')
+  const [joinCode, setJoinCode] = useState('')
 
   const selectedGroup = groups.find((group) => group.id === selectedGroupId)
   const members = membersByGroup[selectedGroupId] ?? []
 
   const isCurrentUserOwner = selectedGroup?.ownerId === currentUser.id
+
+  const showFeedback = (message) => {
+    setFeedback(message)
+    window.clearTimeout(window.__pvFeedbackTimer)
+    window.__pvFeedbackTimer = window.setTimeout(() => setFeedback(''), 3200)
+  }
+
+  const createGroup = (event) => {
+    event.preventDefault()
+
+    const trimmedName = newGroupName.trim()
+    if (!trimmedName) {
+      showFeedback('Grup adı boş olamaz.')
+      return
+    }
+
+    const groupId = `g-${Date.now()}`
+    const inviteCode = makeInviteCode(trimmedName)
+    const newGroup = {
+      id: groupId,
+      name: trimmedName,
+      memberCount: 1,
+      inviteCode,
+      ownerId: currentUser.id,
+    }
+
+    setGroups((current) => [newGroup, ...current])
+    setMembersByGroup((current) => ({
+      ...current,
+      [groupId]: [makeCurrentUserMember(userProfile)],
+    }))
+    setSelectedGroupId(groupId)
+    setActiveTab('summary')
+    setNewGroupName('')
+    setCreateGroupOpen(false)
+    showFeedback(`${trimmedName} grubu oluşturuldu. Davet kodu: ${inviteCode}`)
+  }
+
+  const joinGroup = (event) => {
+    event.preventDefault()
+
+    const normalizedCode = joinCode.trim().toUpperCase()
+    if (!normalizedCode) {
+      showFeedback('Davet kodu boş olamaz.')
+      return
+    }
+
+    const group = groups.find((item) => item.inviteCode.toUpperCase() === normalizedCode)
+    if (!group) {
+      showFeedback('Bu demo sürümde sadece mevcut örnek grupların kodlarıyla katılım yapılabilir.')
+      return
+    }
+
+    const alreadyMember = (membersByGroup[group.id] ?? []).some((member) => member.id === currentUser.id)
+
+    if (!alreadyMember) {
+      setMembersByGroup((current) => ({
+        ...current,
+        [group.id]: [makeCurrentUserMember(userProfile), ...(current[group.id] ?? [])],
+      }))
+      setGroups((current) => current.map((item) => (
+        item.id === group.id ? { ...item, memberCount: item.memberCount + 1 } : item
+      )))
+    }
+
+    setSelectedGroupId(group.id)
+    setActiveTab('summary')
+    setJoinCode('')
+    setJoinGroupOpen(false)
+    showFeedback(`${group.name} grubuna geçildi.`)
+  }
+
+  const shareGroupOnWhatsApp = async () => {
+    if (!selectedGroup) return
+
+    const appLink = window.location.origin
+    const message = `Piyasa Vakti grubuna katıl: ${selectedGroup.name}%0A%0ADavet kodu: ${selectedGroup.inviteCode}%0A${appLink}`
+    const whatsappUrl = `https://wa.me/?text=${message}`
+
+    window.open(whatsappUrl, '_blank', 'noopener,noreferrer')
+
+    try {
+      await navigator.clipboard?.writeText(`Piyasa Vakti - ${selectedGroup.name}\nDavet kodu: ${selectedGroup.inviteCode}\n${appLink}`)
+      showFeedback('WhatsApp açıldı. Davet bilgisi ayrıca panoya kopyalandı.')
+    } catch {
+      showFeedback('WhatsApp açıldı. Davet kodunu ekrandan da paylaşabilirsin.')
+    }
+  }
 
   const removeMemberFromGroup = (memberId) => {
     if (!isCurrentUserOwner || memberId === selectedGroup.ownerId) return
@@ -91,9 +218,11 @@ export default function App() {
         </div>
 
         <div className="side-actions">
-          <button><Plus size={17} /> Grup oluştur</button>
-          <button><Search size={17} /> Kodla katıl</button>
+          <button onClick={() => setCreateGroupOpen(true)}><Plus size={17} /> Grup oluştur</button>
+          <button onClick={() => setJoinGroupOpen(true)}><Search size={17} /> Kodla katıl</button>
         </div>
+
+        {feedback ? <div className="feedback-box">{feedback}</div> : null}
 
         <h2 className="side-title">Gruplarım</h2>
         <div className="group-list">
@@ -120,7 +249,7 @@ export default function App() {
           </div>
           <div className="topbar-actions">
             {isCurrentUserOwner ? <span className="owner-badge"><Crown size={15} /> Yönetici</span> : null}
-            <button className="primary-button">WhatsApp'a link at</button>
+            <button className="primary-button" onClick={shareGroupOnWhatsApp}>WhatsApp'a link at</button>
           </div>
         </header>
 
@@ -160,7 +289,6 @@ export default function App() {
           <AvailabilityForm profile={myProfile} onChange={updateMyProfile} />
         )}
 
-
         {members.length > 0 && activeTab === 'admin' && (
           <GroupAdmin
             group={selectedGroup}
@@ -170,6 +298,50 @@ export default function App() {
           />
         )}
       </section>
+
+      {createGroupOpen ? (
+        <div className="modal-backdrop" role="presentation" onClick={() => setCreateGroupOpen(false)}>
+          <form className="modal-card" onSubmit={createGroup} onClick={(event) => event.stopPropagation()}>
+            <h2>Yeni grup oluştur</h2>
+            <p>Grubu kuran kişi otomatik yönetici olur.</p>
+            <label className="field-label" htmlFor="new-group-name">Grup adı</label>
+            <input
+              id="new-group-name"
+              className="input"
+              value={newGroupName}
+              onChange={(event) => setNewGroupName(event.target.value)}
+              placeholder="Örn. Fethiye Tayfa"
+              autoFocus
+            />
+            <div className="modal-actions">
+              <button type="button" className="secondary-button" onClick={() => setCreateGroupOpen(false)}>Vazgeç</button>
+              <button type="submit" className="primary-button">Grubu oluştur</button>
+            </div>
+          </form>
+        </div>
+      ) : null}
+
+      {joinGroupOpen ? (
+        <div className="modal-backdrop" role="presentation" onClick={() => setJoinGroupOpen(false)}>
+          <form className="modal-card" onSubmit={joinGroup} onClick={(event) => event.stopPropagation()}>
+            <h2>Kodla gruba katıl</h2>
+            <p>Demo kodları: ITU-2026, FTH-48, MAC-1907</p>
+            <label className="field-label" htmlFor="join-code">Davet kodu</label>
+            <input
+              id="join-code"
+              className="input"
+              value={joinCode}
+              onChange={(event) => setJoinCode(event.target.value.toUpperCase())}
+              placeholder="Örn. FTH-48"
+              autoFocus
+            />
+            <div className="modal-actions">
+              <button type="button" className="secondary-button" onClick={() => setJoinGroupOpen(false)}>Vazgeç</button>
+              <button type="submit" className="primary-button">Katıl</button>
+            </div>
+          </form>
+        </div>
+      ) : null}
     </main>
   )
 }
