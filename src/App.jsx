@@ -734,7 +734,7 @@ ${appLink}`
           <div>
             <h1>Piyasa Vakti</h1>
             <p>Piyasanın Hakkı Verilecek</p>
-            <small className="version-tag">v21 activity suggestions</small>
+            <small className="version-tag">v22 force update</small>
           </div>
         </div>
 
