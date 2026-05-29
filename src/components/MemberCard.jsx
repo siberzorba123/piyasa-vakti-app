@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import React, { useState  } from 'react'
 import { Bike, Car, Check, CircleUserRound, Copy, Wallet, X } from 'lucide-react'
 import { days } from '../data/mockData'
 

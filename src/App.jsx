@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import React, { useMemo, useState  } from 'react'
 import { Crown, Plus, Search, UsersRound } from 'lucide-react'
 import GroupCard from './components/GroupCard'
 import MemberCard from './components/MemberCard'

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import React, { useMemo, useState  } from 'react'
 import { Plus } from 'lucide-react'
 import { activityTypes, days } from '../data/mockData'
 

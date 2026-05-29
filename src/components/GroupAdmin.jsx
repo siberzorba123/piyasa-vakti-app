@@ -1,3 +1,4 @@
+import React from 'react'
 import { Crown, ShieldCheck, UserMinus, UsersRound } from 'lucide-react'
 
 export default function GroupAdmin({ group, members, currentUserId, onRemoveMember }) {

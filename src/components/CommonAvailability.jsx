@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import React, { useState  } from 'react'
 import { Bell, Bike, CalendarCheck, Car, Sparkles } from 'lucide-react'
 import { calculateActivityMatches, calculateCommonAvailability, calculateVehicleSummary } from '../utils/calculateCommonAvailability'
 

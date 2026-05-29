@@ -1,3 +1,4 @@
+import React from 'react'
 export default function ProfileForm({ profile, onChange }) {
   const initials = profile.name
     .split(' ')
