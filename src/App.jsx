@@ -7,6 +7,7 @@ import ProfileForm from './components/ProfileForm'
 import CommonAvailability from './components/CommonAvailability'
 import GroupAdmin from './components/GroupAdmin'
 import GroupChat from './components/GroupChat'
+import GroupPlanningPanel from './components/GroupPlanningPanel'
 import { supabase, isSupabaseConfigured } from './lib/supabase'
 import './styles.css'
 
@@ -208,11 +209,14 @@ export default function App() {
   const [groupActivitiesByGroup, setGroupActivitiesByGroup] = useState({})
   const [chatLoading, setChatLoading] = useState(false)
   const [chatError, setChatError] = useState('')
+  const [planningDataByGroup, setPlanningDataByGroup] = useState({})
+  const [planningError, setPlanningError] = useState('')
 
   const user = session?.user
   const selectedGroup = groups.find((group) => group.id === selectedGroupId)
   const members = membersByGroup[selectedGroupId] ?? []
   const messages = messagesByGroup[selectedGroupId] ?? []
+  const planningData = planningDataByGroup[selectedGroupId] ?? { announcement: null, plan: null, responses: [], poll: null }
   const isCurrentUserOwner = selectedGroup?.ownerId === user?.id
 
   const showFeedback = (message) => {
@@ -390,7 +394,9 @@ export default function App() {
       setUserProfile(null)
       setMessagesByGroup({})
       setGroupActivitiesByGroup({})
+      setPlanningDataByGroup({})
       setChatError('')
+      setPlanningError('')
     }
   }, [user?.id])
 
@@ -522,6 +528,226 @@ export default function App() {
     }
   }, [selectedGroupId, user?.id])
 
+
+  const loadPlanningData = async (groupId = selectedGroupId) => {
+    if (!groupId || !supabase || !user) return
+
+    setPlanningError('')
+
+    try {
+      const { data: announcement, error: announcementError } = await supabase
+        .from('group_announcements')
+        .select('*')
+        .eq('group_id', groupId)
+        .maybeSingle()
+
+      if (announcementError) throw announcementError
+
+      const { data: plan, error: planError } = await supabase
+        .from('finalized_plans')
+        .select('*')
+        .eq('group_id', groupId)
+        .maybeSingle()
+
+      if (planError) throw planError
+
+      let responses = []
+      if (plan?.id) {
+        const { data: responseRows, error: responseError } = await supabase
+          .from('plan_responses')
+          .select('*')
+          .eq('plan_id', plan.id)
+
+        if (responseError) throw responseError
+        responses = responseRows || []
+      }
+
+      const { data: poll, error: pollError } = await supabase
+        .from('group_polls')
+        .select('*')
+        .eq('group_id', groupId)
+        .eq('is_active', true)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      if (pollError) throw pollError
+
+      let pollOptions = []
+      let pollVotes = []
+      if (poll?.id) {
+        const [optionsResult, votesResult] = await Promise.all([
+          supabase.from('poll_options').select('*').eq('poll_id', poll.id).order('created_at', { ascending: true }),
+          supabase.from('poll_votes').select('*').eq('poll_id', poll.id),
+        ])
+
+        if (optionsResult.error) throw optionsResult.error
+        if (votesResult.error) throw votesResult.error
+        pollOptions = optionsResult.data || []
+        pollVotes = votesResult.data || []
+      }
+
+      setPlanningDataByGroup((current) => ({
+        ...current,
+        [groupId]: {
+          announcement: announcement ? {
+            id: announcement.id,
+            body: announcement.body || '',
+            updatedAt: announcement.updated_at,
+          } : null,
+          plan: plan ? {
+            id: plan.id,
+            dayLabel: plan.day_label,
+            startTime: plan.start_time,
+            endTime: plan.end_time,
+            activity: plan.activity,
+            note: plan.note || '',
+          } : null,
+          responses: responses.map((row) => ({
+            id: row.id,
+            planId: row.plan_id,
+            userId: row.user_id,
+            status: row.status,
+          })),
+          poll: poll ? {
+            id: poll.id,
+            question: poll.question,
+            options: pollOptions.map((row) => ({ id: row.id, label: row.label })),
+            votes: pollVotes.map((row) => ({ id: row.id, userId: row.user_id, optionId: row.option_id })),
+          } : null,
+        },
+      }))
+    } catch (error) {
+      console.error(error)
+      setPlanningError('v24 SQL patch çalıştırılmamış olabilir. Plan, duyuru ve oylama özellikleri için Supabase patch gerekli.')
+    }
+  }
+
+  useEffect(() => {
+    if (selectedGroupId && user) {
+      loadPlanningData(selectedGroupId)
+    }
+  }, [selectedGroupId, user?.id])
+
+  const saveGroupAnnouncement = async (body) => {
+    if (!selectedGroupId || !isCurrentUserOwner) return
+
+    try {
+      const { error } = await supabase
+        .from('group_announcements')
+        .upsert({
+          group_id: selectedGroupId,
+          body: body.trim(),
+          updated_by: user.id,
+        }, { onConflict: 'group_id' })
+
+      if (error) throw error
+      await loadPlanningData(selectedGroupId)
+      showFeedback('Duyuru kaydedildi.')
+    } catch (error) {
+      window.alert(error.message || 'Duyuru kaydedilemedi. v24 SQL patch gerekli olabilir.')
+    }
+  }
+
+  const finalizePlan = async ({ dayLabel, startTime, endTime, activity, note }) => {
+    if (!selectedGroupId || !isCurrentUserOwner) return
+
+    try {
+      const { error } = await supabase
+        .from('finalized_plans')
+        .upsert({
+          group_id: selectedGroupId,
+          day_label: dayLabel,
+          start_time: startTime,
+          end_time: endTime,
+          activity,
+          note: note || '',
+          created_by: user.id,
+        }, { onConflict: 'group_id' })
+
+      if (error) throw error
+      await loadPlanningData(selectedGroupId)
+      showFeedback('Plan kesinleştirildi.')
+    } catch (error) {
+      window.alert(error.message || 'Plan kesinleştirilemedi. v24 SQL patch gerekli olabilir.')
+    }
+  }
+
+  const respondToPlan = async (status) => {
+    const plan = planningDataByGroup[selectedGroupId]?.plan
+    if (!selectedGroupId || !plan?.id) return
+
+    try {
+      const { error } = await supabase
+        .from('plan_responses')
+        .upsert({
+          plan_id: plan.id,
+          user_id: user.id,
+          status,
+        }, { onConflict: 'plan_id,user_id' })
+
+      if (error) throw error
+      await loadPlanningData(selectedGroupId)
+    } catch (error) {
+      window.alert(error.message || 'Katılım cevabı kaydedilemedi.')
+    }
+  }
+
+  const createPoll = async (question, options) => {
+    if (!selectedGroupId || !isCurrentUserOwner) return
+
+    try {
+      await supabase
+        .from('group_polls')
+        .update({ is_active: false })
+        .eq('group_id', selectedGroupId)
+        .eq('is_active', true)
+
+      const { data: poll, error: pollError } = await supabase
+        .from('group_polls')
+        .insert({
+          group_id: selectedGroupId,
+          question,
+          created_by: user.id,
+          is_active: true,
+        })
+        .select()
+        .single()
+
+      if (pollError) throw pollError
+
+      const { error: optionError } = await supabase
+        .from('poll_options')
+        .insert(options.map((label) => ({ poll_id: poll.id, label })))
+
+      if (optionError) throw optionError
+      await loadPlanningData(selectedGroupId)
+      showFeedback('Oylama başlatıldı.')
+    } catch (error) {
+      window.alert(error.message || 'Oylama oluşturulamadı. v24 SQL patch gerekli olabilir.')
+    }
+  }
+
+  const votePoll = async (optionId) => {
+    const poll = planningDataByGroup[selectedGroupId]?.poll
+    if (!poll?.id || !optionId) return
+
+    try {
+      const { error } = await supabase
+        .from('poll_votes')
+        .upsert({
+          poll_id: poll.id,
+          option_id: optionId,
+          user_id: user.id,
+        }, { onConflict: 'poll_id,user_id' })
+
+      if (error) throw error
+      await loadPlanningData(selectedGroupId)
+    } catch (error) {
+      window.alert(error.message || 'Oy kaydedilemedi.')
+    }
+  }
+
   const sendGroupMessage = async (body) => {
     if (!selectedGroupId || !body.trim()) return
 
@@ -559,9 +785,15 @@ export default function App() {
     if (!selectedGroup) return
 
     const appLink = 'https://piyasa-vakti-app.vercel.app'
-    const plainMessage = `Piyasa Vakti - ${selectedGroup.name}
+    const plainMessage = `Piyasa Vakti grubuna davetlisin!
+
+Grup: ${selectedGroup.name}
 Davet kodu: ${selectedGroup.inviteCode}
-${appLink}`
+
+Katılmak için:
+${appLink}
+
+Önce hesap oluştur veya giriş yap, sonra Kodla katıl bölümüne davet kodunu yaz.`
 
     try {
       await navigator.clipboard.writeText(plainMessage)
@@ -777,7 +1009,7 @@ ${appLink}`
           <div>
             <h1>Piyasa Vakti</h1>
             <p>Piyasanın Hakkı Verilecek</p>
-            <small className="version-tag">v23 group activities</small>
+            <small className="version-tag">v24 plans polls announcements</small>
           </div>
         </div>
 
@@ -863,6 +1095,19 @@ ${appLink}`
 
             {members.length > 0 && activeTab === 'summary' && (
               <>
+                {planningError ? <div className="patch-warning">{planningError}</div> : null}
+                <GroupPlanningPanel
+                  group={selectedGroup}
+                  members={members}
+                  currentUserId={user.id}
+                  isOwner={isCurrentUserOwner}
+                  planningData={planningData}
+                  onSaveAnnouncement={saveGroupAnnouncement}
+                  onFinalizePlan={finalizePlan}
+                  onRespondPlan={respondToPlan}
+                  onCreatePoll={createPoll}
+                  onVotePoll={votePoll}
+                />
                 <CommonAvailability members={members} />
                 <GroupChat
                   messages={messages}
