@@ -1086,3 +1086,115 @@ button { cursor: pointer; }
     grid-template-columns: 1fr;
   }
 }
+
+
+/* v25 clean layout */
+.brand p,
+.auth-brand p {
+  display: none;
+}
+.sidebar {
+  gap: 18px;
+}
+.content {
+  padding: 26px 30px;
+}
+.topbar {
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.topbar h1 {
+  line-height: 1.1;
+}
+.group-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+.group-meta-row span {
+  margin: 0;
+  color: #475569;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  padding: 7px 10px;
+  font-size: .86rem;
+  font-weight: 800;
+}
+.tabs {
+  margin-bottom: 16px;
+}
+.panel,
+.member-card,
+.empty-state {
+  padding: 20px;
+}
+.section-title {
+  margin-bottom: 14px;
+}
+.compact-section-title {
+  margin-bottom: 12px;
+}
+.compact-section-title h2 {
+  font-size: 1.05rem;
+}
+.compact-section-title p {
+  font-size: .86rem;
+}
+.planning-grid.compact-planning-grid {
+  grid-template-columns: minmax(0, 1.15fr) minmax(320px, .85fr);
+  gap: 16px;
+  align-items: stretch;
+}
+.planning-main-card {
+  grid-row: span 2;
+}
+.planning-grid .panel {
+  min-height: 0;
+}
+.finalize-box {
+  margin-top: 6px;
+}
+.smart-suggestion-card,
+.final-plan-card,
+.poll-view {
+  padding: 14px;
+}
+.compact-textarea {
+  min-height: 78px;
+}
+.poll-create {
+  margin-top: 10px;
+}
+.announcement-panel,
+.announcement-editor,
+.announcement-view {
+  display: none !important;
+}
+.version-tag {
+  margin-top: 3px;
+}
+
+@media (max-width: 900px) {
+  .planning-grid.compact-planning-grid {
+    grid-template-columns: 1fr;
+  }
+  .planning-main-card {
+    grid-row: auto;
+  }
+}
+@media (max-width: 620px) {
+  .content {
+    padding: 18px;
+  }
+  .topbar-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    width: 100%;
+  }
+  .group-meta-row span {
+    width: 100%;
+  }
+}

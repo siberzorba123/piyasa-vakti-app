@@ -154,8 +154,7 @@ function AuthScreen() {
           <div className="brand-icon">PV</div>
           <div>
             <h1>Piyasa Vakti</h1>
-            <p>Piyasanın Hakkı Verilecek</p>
-          </div>
+                      </div>
         </div>
 
         <h2>{mode === 'login' ? 'Giriş yap' : 'Hesap oluştur'}</h2>
@@ -1008,8 +1007,7 @@ ${appLink}
           <div className="brand-icon">PV</div>
           <div>
             <h1>Piyasa Vakti</h1>
-            <p>Piyasanın Hakkı Verilecek</p>
-            <small className="version-tag">v24 plans polls announcements</small>
+                        <small className="version-tag">v25 clean layout</small>
           </div>
         </div>
 
@@ -1056,7 +1054,11 @@ ${appLink}
             <p className="eyebrow">Seçili grup</p>
             <h1>{selectedGroup?.name || 'Grup seçilmedi'}</h1>
             {selectedGroup ? (
-              <span>{members.length} üye · davet kodu {selectedGroup.inviteCode} · yönetici {members.find((member) => member.id === selectedGroup.ownerId)?.name ?? 'Bilinmiyor'}</span>
+              <div className="group-meta-row">
+                <span>{members.length} üye</span>
+                <span>Kod: {selectedGroup.inviteCode}</span>
+                <span>Yönetici: {members.find((member) => member.id === selectedGroup.ownerId)?.name ?? 'Bilinmiyor'}</span>
+              </div>
             ) : (
               <span>Başlamak için grup oluştur veya davet koduyla katıl.</span>
             )}
@@ -1102,7 +1104,6 @@ ${appLink}
                   currentUserId={user.id}
                   isOwner={isCurrentUserOwner}
                   planningData={planningData}
-                  onSaveAnnouncement={saveGroupAnnouncement}
                   onFinalizePlan={finalizePlan}
                   onRespondPlan={respondToPlan}
                   onCreatePoll={createPoll}

@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react'
-import { CheckCircle2, Megaphone, PartyPopper, Send, ThumbsUp, Vote } from 'lucide-react'
+import React, { useMemo, useState } from 'react'
+import { CheckCircle2, PartyPopper, ThumbsUp, Vote } from 'lucide-react'
 import { calculateActivityMatches, calculateCommonAvailability } from '../utils/calculateCommonAvailability'
 
 const responseLabels = {
@@ -22,20 +22,14 @@ export default function GroupPlanningPanel({
   currentUserId,
   isOwner,
   planningData,
-  onSaveAnnouncement,
   onFinalizePlan,
   onRespondPlan,
   onCreatePoll,
   onVotePoll,
 }) {
-  const [announcementText, setAnnouncementText] = useState(planningData?.announcement?.body || '')
   const [planNote, setPlanNote] = useState('')
   const [pollQuestion, setPollQuestion] = useState('Nereye / neye karar verelim?')
   const [pollOptionsText, setPollOptionsText] = useState('')
-
-  useEffect(() => {
-    setAnnouncementText(planningData?.announcement?.body || '')
-  }, [planningData?.announcement?.body, group?.id])
 
   const slots = useMemo(() => calculateCommonAvailability(members), [members])
   const activities = useMemo(() => calculateActivityMatches(members, slots), [members, slots])
@@ -94,40 +88,13 @@ export default function GroupPlanningPanel({
   }
 
   return (
-    <section className="planning-grid">
-      <article className="panel announcement-panel">
-        <div className="section-title inline-title">
-          <Megaphone />
-          <div>
-            <h2>Grup duyurusu</h2>
-            <p>Planla ilgili kısa bilgi grubun üstünde sabit dursun.</p>
-          </div>
-        </div>
-        {isOwner ? (
-          <div className="announcement-editor">
-            <textarea
-              className="textarea compact-textarea"
-              value={announcementText}
-              onChange={(event) => setAnnouncementText(event.target.value)}
-              placeholder="Örn: Bu hafta cumartesi akşamı plan yapıyoruz, herkes müsaitliğini girsin."
-            />
-            <button className="primary-button" type="button" onClick={() => onSaveAnnouncement(announcementText)}>
-              <Send size={15} /> Duyuruyu kaydet
-            </button>
-          </div>
-        ) : (
-          <div className="announcement-view">
-            {planningData?.announcement?.body || 'Henüz duyuru yok.'}
-          </div>
-        )}
-      </article>
-
-      <article className="panel smart-suggestion-panel">
-        <div className="section-title inline-title">
+    <section className="planning-grid compact-planning-grid">
+      <article className="panel smart-suggestion-panel planning-main-card">
+        <div className="section-title inline-title compact-section-title">
           <PartyPopper />
           <div>
             <h2>Akıllı öneri</h2>
-            <p>En uygun gün ve en güçlü etkinlik otomatik öne çıkar.</p>
+            <p>En uygun saat ve en güçlü etkinlik otomatik öne çıkar.</p>
           </div>
         </div>
         {recommendation ? (
@@ -165,11 +132,11 @@ export default function GroupPlanningPanel({
       </article>
 
       <article className="panel final-plan-panel">
-        <div className="section-title inline-title">
+        <div className="section-title inline-title compact-section-title">
           <CheckCircle2 />
           <div>
             <h2>Kesinleşen plan</h2>
-            <p>Plan kesinleşince herkes son kararını buradan verir.</p>
+            <p>Herkes son kararını buradan verir.</p>
           </div>
         </div>
         {plan ? (
@@ -196,16 +163,16 @@ export default function GroupPlanningPanel({
             </div>
           </div>
         ) : (
-          <p className="muted-text">Henüz kesinleşen plan yok. Yönetici akıllı öneriden planı kesinleştirebilir.</p>
+          <p className="muted-text">Henüz kesinleşen plan yok.</p>
         )}
       </article>
 
       <article className="panel poll-panel">
-        <div className="section-title inline-title">
+        <div className="section-title inline-title compact-section-title">
           <Vote />
           <div>
             <h2>Oylama</h2>
-            <p>Yer, aktivite veya saat seçeneklerini hızlıca oylayın.</p>
+            <p>Yer, etkinlik veya saat seçeneklerini oylayın.</p>
           </div>
         </div>
 
