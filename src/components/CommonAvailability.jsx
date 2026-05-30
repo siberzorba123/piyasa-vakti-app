@@ -5,7 +5,7 @@ import { calculateActivityMatches, calculateCommonAvailability, calculateVehicle
 export default function CommonAvailability({ members }) {
   const [notificationMessage, setNotificationMessage] = useState('')
   const slots = calculateCommonAvailability(members)
-  const activities = calculateActivityMatches(members)
+  const activities = calculateActivityMatches(members, slots)
   const topActivities = activities.slice(0, 5)
   const hiddenActivityCount = Math.max(activities.length - topActivities.length, 0)
   const vehicle = calculateVehicleSummary(members)
@@ -57,17 +57,23 @@ export default function CommonAvailability({ members }) {
           <Sparkles />
           <div>
             <h2>Aktivite uyumu</h2>
-            <p>En çok uyum olan ilk 5 aktivite gösterilir.</p>
+            <p>Yeşil kutu, ortak uygun saatteki herkesin o aktiviteyi de seçtiğini gösterir.</p>
           </div>
         </div>
         <div className="rank-list compact-rank-list">
           {topActivities.length ? topActivities.map((item, index) => (
-            <div className="rank-row activity-rank-row" key={item.activity}>
+            <div className={`rank-row activity-rank-row ${item.isPerfectForCommonSlot ? 'perfect-fit' : ''}`} key={item.activity}>
               <span>{index + 1}</span>
               <div>
                 <strong>{item.activity}</strong>
                 <small>{item.names.join(', ')}</small>
-                <em>Öneri: {item.suggestionSummary}</em>
+                <em className="suggestion-line">
+                  <span>Öneri:</span>
+                  <span>{item.suggestionSummary}</span>
+                </em>
+                {item.isPerfectForCommonSlot ? (
+                  <small className="perfect-fit-note">{item.perfectSlotLabel} ortak saatindeki herkese uygun</small>
+                ) : null}
               </div>
               <b>{item.count}</b>
             </div>

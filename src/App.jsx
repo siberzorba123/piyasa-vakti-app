@@ -205,6 +205,7 @@ export default function App() {
   const [userProfile, setUserProfile] = useState(null)
   const [feedback, setFeedback] = useState('')
   const [messagesByGroup, setMessagesByGroup] = useState({})
+  const [groupActivitiesByGroup, setGroupActivitiesByGroup] = useState({})
   const [chatLoading, setChatLoading] = useState(false)
   const [chatError, setChatError] = useState('')
 
@@ -276,6 +277,7 @@ export default function App() {
         }))
 
       const membersMap = {}
+      const groupActivitiesMap = {}
 
       for (const group of loadedGroups) {
         const { data: groupMemberRows, error: groupMemberError } = await supabase
@@ -310,6 +312,26 @@ export default function App() {
         if (activitiesResult.error) throw activitiesResult.error
         if (vehicleResult.error) throw vehicleResult.error
 
+        const groupActivityNames = new Set((activitiesResult.data || []).map((row) => row.activity).filter(Boolean))
+
+        try {
+          const { data: groupActivityRows, error: groupActivityError } = await supabase
+            .from('group_activities')
+            .select('name')
+            .eq('group_id', group.id)
+            .order('name', { ascending: true })
+
+          if (!groupActivityError) {
+            ;(groupActivityRows || []).forEach((row) => {
+              if (row.name) groupActivityNames.add(row.name)
+            })
+          }
+        } catch {
+          // v23 SQL patch çalıştırılmadıysa seçilmiş aktivitelerden devam eder.
+        }
+
+        groupActivitiesMap[group.id] = Array.from(groupActivityNames).sort((a, b) => a.localeCompare(b, 'tr'))
+
         membersMap[group.id] = (profilesResult.data || []).map((memberProfile) => (
           profileToMember(
             memberProfile,
@@ -323,6 +345,7 @@ export default function App() {
 
       setGroups(loadedGroups)
       setMembersByGroup(membersMap)
+      setGroupActivitiesByGroup(groupActivitiesMap)
 
       if (loadedGroups.length && (!selectedGroupId || !loadedGroups.some((group) => group.id === selectedGroupId))) {
         setSelectedGroupId(loadedGroups[0].id)
@@ -366,6 +389,7 @@ export default function App() {
       setMembersByGroup({})
       setUserProfile(null)
       setMessagesByGroup({})
+      setGroupActivitiesByGroup({})
       setChatError('')
     }
   }, [user?.id])
@@ -534,7 +558,7 @@ export default function App() {
   const shareGroupOnWhatsApp = async () => {
     if (!selectedGroup) return
 
-    const appLink = window.location.origin
+    const appLink = 'https://piyasa-vakti-app.vercel.app'
     const plainMessage = `Piyasa Vakti - ${selectedGroup.name}
 Davet kodu: ${selectedGroup.inviteCode}
 ${appLink}`
@@ -665,7 +689,26 @@ ${appLink}`
         .eq('group_id', selectedGroupId)
         .eq('user_id', user.id)
 
-      const activityRows = (profile.activities || []).map((activity) => ({
+      const cleanActivities = Array.from(new Set((profile.activities || []).map((activity) => activity.trim()).filter(Boolean)))
+
+      if (cleanActivities.length) {
+        try {
+          await supabase
+            .from('group_activities')
+            .upsert(
+              cleanActivities.map((activity) => ({
+                group_id: selectedGroupId,
+                name: activity,
+                created_by: user.id,
+              })),
+              { onConflict: 'group_id,name', ignoreDuplicates: true },
+            )
+        } catch {
+          // v23 SQL patch eksikse kişisel aktivite tercihleri yine kaydedilir.
+        }
+      }
+
+      const activityRows = cleanActivities.map((activity) => ({
         group_id: selectedGroupId,
         user_id: user.id,
         activity,
@@ -734,7 +777,7 @@ ${appLink}`
           <div>
             <h1>Piyasa Vakti</h1>
             <p>Piyasanın Hakkı Verilecek</p>
-            <small className="version-tag">v22 force update</small>
+            <small className="version-tag">v23 group activities</small>
           </div>
         </div>
 
@@ -844,7 +887,11 @@ ${appLink}`
             )}
 
             {activeTab === 'mine' && myProfile && (
-              <AvailabilityForm profile={myProfile} onChange={updateMyProfile} />
+              <AvailabilityForm
+                profile={myProfile}
+                availableActivities={groupActivitiesByGroup[selectedGroupId] ?? []}
+                onChange={updateMyProfile}
+              />
             )}
 
             {members.length > 0 && activeTab === 'admin' && (

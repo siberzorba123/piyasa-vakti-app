@@ -30,7 +30,7 @@ const cloneProfile = (profile) => ({
   vehicle: { ...(profile.vehicle ?? { hasCar: false, hasMotorcycle: false, note: '' }) },
 })
 
-export default function AvailabilityForm({ profile, onChange }) {
+export default function AvailabilityForm({ profile, availableActivities = [], onChange }) {
   const [draft, setDraft] = useState(() => cloneProfile(profile))
   const [newActivity, setNewActivity] = useState('')
   const [dirty, setDirty] = useState(false)
@@ -38,7 +38,7 @@ export default function AvailabilityForm({ profile, onChange }) {
   useEffect(() => {
     setDraft(cloneProfile(profile))
     setDirty(false)
-  }, [profile.id])
+  }, [profile])
 
   const updateDraft = (updater) => {
     setDraft((current) => (typeof updater === 'function' ? updater(current) : updater))
@@ -46,8 +46,18 @@ export default function AvailabilityForm({ profile, onChange }) {
   }
 
   const allActivities = useMemo(() => (
-    Array.from(new Set([...activityTypes, ...(draft.activities ?? [])]))
-  ), [draft.activities])
+    Array.from(new Set([
+      ...activityTypes,
+      ...(availableActivities ?? []),
+      ...(draft.activities ?? []),
+    ])).sort((a, b) => {
+      const defaultA = activityTypes.includes(a)
+      const defaultB = activityTypes.includes(b)
+      if (defaultA && !defaultB) return -1
+      if (!defaultA && defaultB) return 1
+      return a.localeCompare(b, 'tr')
+    })
+  ), [availableActivities, draft.activities])
 
   const updateInterval = (dayKey, field, value) => {
     updateDraft((currentProfile) => {
@@ -150,7 +160,7 @@ export default function AvailabilityForm({ profile, onChange }) {
     <section className="panel">
       <div className="section-title">
         <h2>Müsaitliğim</h2>
-        <p>Aktiviteleri seç, her aktivitenin altına istersen öneri/mekân/not yaz. Boş bırakırsan özet kısmında “Fark etmez” görünür.</p>
+        <p>Bu gruba ait aktiviteleri seç, her aktivitenin altına istersen öneri/mekân/not yaz. Grupta biri yeni aktivite ekleyip kaydederse burada seçenek olarak görünür.</p>
       </div>
 
       <div className="draft-warning">
@@ -240,7 +250,7 @@ export default function AvailabilityForm({ profile, onChange }) {
           className="input"
           value={newActivity}
           onChange={(event) => setNewActivity(event.target.value)}
-          placeholder="Yeni aktivite ekle: bowling, mangal, beach..."
+          placeholder="Bu gruba yeni etkinlik ekle: bowling, mangal, beach..."
           onKeyDown={(event) => {
             if (event.key === 'Enter') addActivity()
           }}

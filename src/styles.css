@@ -934,3 +934,39 @@ button { cursor: pointer; }
 }
 
 /* v22 force update */
+
+/* v23 group-specific activities */
+.activity-rank-row.perfect-fit {
+  background: #ecfdf5;
+  border-color: #86efac;
+  box-shadow: 0 10px 24px rgba(22, 163, 74, 0.10);
+}
+.activity-rank-row.perfect-fit > span,
+.activity-rank-row.perfect-fit > b {
+  background: #16a34a;
+  color: #fff;
+}
+.suggestion-line {
+  display: flex !important;
+  align-items: flex-start;
+  gap: 7px;
+  margin-top: 6px !important;
+}
+.suggestion-line span:first-child {
+  flex: 0 0 auto;
+  font-weight: 900;
+  color: #475569;
+}
+.suggestion-line span:last-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.perfect-fit-note {
+  display: inline-flex !important;
+  margin-top: 7px;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: #dcfce7;
+  color: #166534 !important;
+  font-weight: 900;
+}

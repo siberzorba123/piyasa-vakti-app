@@ -56,13 +56,15 @@ export function calculateCommonAvailability(members) {
       }
 
       if (availableMembers.length >= 2) {
+        const sortedMembers = [...availableMembers].sort((a, b) => a.name.localeCompare(b.name, 'tr'))
         results.push({
           day: day.label,
           dayKey: day.key,
           start: fromMinutes(common.start),
           end: fromMinutes(common.end),
-          count: availableMembers.length,
-          members: availableMembers.map((m) => m.name),
+          count: sortedMembers.length,
+          memberIds: sortedMembers.map((m) => m.id),
+          members: sortedMembers.map((m) => m.name),
         })
       }
     }
@@ -70,7 +72,7 @@ export function calculateCommonAvailability(members) {
 
   const unique = new Map()
   results.forEach((slot) => {
-    const key = `${slot.dayKey}-${slot.start}-${slot.end}-${slot.members.sort().join('-')}`
+    const key = `${slot.dayKey}-${slot.start}-${slot.end}-${slot.memberIds.join('-')}`
     unique.set(key, slot)
   })
 
@@ -79,7 +81,7 @@ export function calculateCommonAvailability(members) {
     .slice(0, 8)
 }
 
-export function calculateActivityMatches(members) {
+export function calculateActivityMatches(members, slots = []) {
   const counts = new Map()
   members.forEach((member) => {
     member.activities?.forEach((activity) => {
@@ -87,6 +89,7 @@ export function calculateActivityMatches(members) {
       const detail = member.activityDetails?.[activity]
       const suggestion = detail?.value?.trim() || ''
       counts.get(activity).push({
+        id: member.id,
         name: member.name,
         suggestion,
       })
@@ -95,6 +98,10 @@ export function calculateActivityMatches(members) {
 
   return Array.from(counts.entries())
     .map(([activity, entries]) => {
+      const selectedIds = new Set(entries.map((entry) => entry.id))
+      const matchingSlot = slots.find((slot) => (
+        slot.memberIds?.length >= 2 && slot.memberIds.every((memberId) => selectedIds.has(memberId))
+      ))
       const specificSuggestions = entries.filter((entry) => entry.suggestion)
       const neutralCount = entries.length - specificSuggestions.length
       const suggestionParts = []
@@ -110,10 +117,16 @@ export function calculateActivityMatches(members) {
         activity,
         count: entries.length,
         names: entries.map((entry) => entry.name),
+        memberIds: entries.map((entry) => entry.id),
         suggestionSummary: suggestionParts.length ? suggestionParts.join(' · ') : 'Fark etmez',
+        isPerfectForCommonSlot: Boolean(matchingSlot),
+        perfectSlotLabel: matchingSlot ? `${matchingSlot.day} ${matchingSlot.start}-${matchingSlot.end}` : '',
       }
     })
-    .sort((a, b) => b.count - a.count || a.activity.localeCompare(b.activity))
+    .sort((a, b) => {
+      if (a.isPerfectForCommonSlot !== b.isPerfectForCommonSlot) return a.isPerfectForCommonSlot ? -1 : 1
+      return b.count - a.count || a.activity.localeCompare(b.activity, 'tr')
+    })
 }
 
 export function calculateVehicleSummary(members) {
